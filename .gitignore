@@ -10,11 +10,15 @@ TimeMachine/
 */TimeMachine/
 **/TimeMachine/
 
-# SkyCAD 임시/잠금 및 백업 파일
+# SkyCAD 임시/잠금 및 세션/백업 파일
 *.SkyCadLock
 *.SkyCadBackup
 *.SkyCadTmp
 *.SkyCadRecover*
+*.SkyCadUserInfo
+Collaborative/
+*/Collaborative/
+**/Collaborative/
 
 # ------------------------------------------------------------------------------
 # 2. General Temporary & Log Files
