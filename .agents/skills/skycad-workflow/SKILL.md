@@ -15,7 +15,7 @@ description: >-
 
 ### 1.1 환경 경로 설정
 * **설정 경로**: `SkyCAD Explorer` -> `Current Environments Path`
-* **지정 값**: `c:\Workspaces\study\SkyCAD_Env` (반드시 `Standard Environment`의 상위 폴더 지정)
+* **지정 값**: `C:\Workspaces\SkyCAD` (반드시 `Standard Environment`의 상위 폴더 지정)
 * **이유**: SkyCAD가 하위의 `Standard Environment` 및 커스텀 환경 폴더들을 자동으로 탐색/로드할 수 있도록 부모 디렉토리를 지정해야 함.
 
 ### 1.2 표준 라이브러리 및 규격

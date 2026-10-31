@@ -25,3 +25,8 @@
   * IEC 60204-1 배선 색상 표준, 강전/약전 분리, 단자대 중계 원칙, BOM 서브파트 관리 및 쉴드선 접지 규칙 문서(`docs/260822-03_전장설계_BOM_케이블_산업표준_설계규칙.md`) 작성.
 
 
+### [2026-10-31]
+* **[11:50] 워크스페이스 이전 및 원격 저장소 클론**
+  * `git@github.com:ykkim-temaat/SkyCAD_Env.git` 저장소를 `C:\Workspaces\SkyCAD` 루트 디렉토리에 클론 및 SSH 인증 설정 완료.
+* **[12:00] SkyCAD 환경 경로(Current Environments Path) 기준 업데이트**
+  * `.agents/rules/skycad-guidelines.md`, `.agents/skills/skycad-workflow/SKILL.md`, `docs/260822-01_SkyCAD_환경설정_및_초기작업가이드.md` 내 환경 경로를 `C:\Workspaces\SkyCAD`로 갱신.
