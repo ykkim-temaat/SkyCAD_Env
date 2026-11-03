@@ -31,6 +31,9 @@ Collaborative/
 *.orig
 *.log
 *~
+scripts/email-config.xml
+scripts/*.secret
+
 
 # ------------------------------------------------------------------------------
 # 3. Windows System Files

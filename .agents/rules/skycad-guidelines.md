@@ -37,4 +37,16 @@
 ## 6. 스킬 및 추가 지식 참조
 - 상세 작업 절차와 노하우는 [SkyCAD 전장설계 스킬](file:///C:/Workspaces/SkyCAD/.agents/skills/skycad-workflow/SKILL.md)을 참조하여 점진적으로 로드 및 업데이트합니다.
 
-
+## 7. 정기 자동 커밋 및 푸시 규칙 (Daily Auto Commit & Push)
+- **실행 주기**: 매일 오전 9시 (`0 9 * * *`) 스케줄 트리거 시 수행합니다.
+- **백그라운드 자동화 (Windows 작업 스케줄러)**:
+  - Antigravity가 실행 중이지 않을 때도 동작하도록 Windows 작업 스케줄러에 **`SkyCAD_Daily_Git_Sync`** 작업이 등록되어 있습니다.
+  - 실행 스크립트: [`scripts/auto-git-sync.ps1`](file:///C:/Workspaces/SkyCAD/scripts/auto-git-sync.ps1) (실행 로그: `scripts/auto-git-sync.log`, `.gitignore`에 의해 버전 관리 제외)
+  - 이메일 알림 설정 스크립트: [`scripts/setup-email-config.ps1`](file:///C:/Workspaces/SkyCAD/scripts/setup-email-config.ps1) (DPAPI 암호화 설정 파일: `scripts/email-config.xml`, `.gitignore` 제외)
+- **수행 절차**:
+  1. `git fetch origin main`을 실행하여 원격 저장소(`origin/main`)의 최신 커밋 상태를 먼저 확인합니다.
+  2. 원격 저장소에 로컬보다 앞선 커밋이 존재하는 경우:
+     - 로컬 변경 사항이 없다면 즉시 `git pull --ff-only origin main`으로 로컬을 최신화합니다.
+     - 로컬 변경 사항이 있다면 먼저 스테이징 및 커밋한 뒤 `git pull --rebase origin main`(동일 파일 충돌 시 원격 저장소 내용을 우선 반영하거나 안전하게 병합)으로 원격 저장소의 최신 내용을 반영합니다.
+  3. 로컬 작업 트리의 변경 사항(`git status`)이 있는 경우, 추가/수정된 카탈로그 부품, 심볼, 도면, 문서 내역을 파악하여 프로젝트 커밋 컨벤션(`feat(skycad): ...`, `docs: ...`, `chore(skycad): ...`)에 맞는 명확한 한국어 커밋 메시지로 스테이징(`git add -A`) 및 커밋(`git commit`)합니다.
+  4. 변경 사항 및 원격 동기화 내역이 모두 없다면 빈 커밋을 만들지 않고 대기하며, 새로운 로컬 커밋이 있는 경우 원격 저장소(`origin main`)로 푸시(`git push origin main`)하고 결과를 요약 보고합니다.
