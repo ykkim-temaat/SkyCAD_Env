@@ -30,3 +30,8 @@
   * `git@github.com:ykkim-temaat/SkyCAD_Env.git` 저장소를 `C:\Workspaces\SkyCAD` 루트 디렉토리에 클론 및 SSH 인증 설정 완료.
 * **[12:00] SkyCAD 환경 경로(Current Environments Path) 기준 업데이트**
   * `.agents/rules/skycad-guidelines.md`, `.agents/skills/skycad-workflow/SKILL.md`, `docs/260822-01_SkyCAD_환경설정_및_초기작업가이드.md` 내 환경 경로를 `C:\Workspaces\SkyCAD`로 갱신.
+
+### [2026-11-06]
+* **[09:19] NAS 원격 저장소(`nas`) 등록 및 미연결 예외 처리 구성**
+  * 네트워크 드라이브 경로 `Y:\3. 전장설계\SkyCAD_Library`를 `nas` 리모트로 등록하고, Git `safe.directory` 예외 등록 및 NAS 저장소 `receive.denyCurrentBranch=updateInstead` 설정 적용.
+  * 정기 자동 동기화 스크립트(`scripts/auto-git-sync.ps1`) 및 가이드라인(`.agents/rules/skycad-guidelines.md`)에 NAS 연결 여부(`Test-Path`) 사전 확인 로직 추가 (미연결 시 오류 없이 건너뛰고, 재연결 시 밀린 커밋 자동 푸시).

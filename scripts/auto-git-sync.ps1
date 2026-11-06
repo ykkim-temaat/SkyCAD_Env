@@ -1,20 +1,25 @@
-﻿# ==============================================================================
+# ==============================================================================
 # SkyCAD Daily Auto Git Sync Script (Commit, Pull/Update from Remote, Push, Email)
 # Runs daily at 09:00 AM via Windows Task Scheduler
 # ==============================================================================
 
 $ErrorActionPreference = "Continue"
 $RepoPath = "C:\Workspaces\SkyCAD"
+$NasPath = "Y:\3. 전장설계\SkyCAD_Library"
 $LogFile = Join-Path $RepoPath "scripts\auto-git-sync.log"
 $EmailConfigFile = Join-Path $RepoPath "scripts\email-config.xml"
 
 $RunLogs = New-Object System.Collections.Generic.List[string]
 $ChangedFilesList = New-Object System.Collections.Generic.List[string]
 $CommitMsg = "변경 사항 없음"
-$CommitHash = "-"
+$CommitHash = (git -C $RepoPath rev-parse --short HEAD 2>$null)
+if (-not $CommitHash) { $CommitHash = "-" }
 $RemoteAheadCount = 0
 $LocalAheadCount = 0
+$NasAheadCount = 0
 $PushStatus = "푸시 대상 없음"
+$NasPushStatus = "푸시 대상 없음"
+$NasSynced = $false
 $HasError = $false
 
 function Write-SyncLog {
@@ -86,7 +91,7 @@ if ($RemoteAheadCount -gt 0) {
     Write-SyncLog "원격 저장소(origin/main)에 추가로 앞선 커밋이 없습니다."
 }
 
-# 5. 로컬이 원격보다 앞선 커밋이 있으면 푸시
+# 5. 로컬이 원격(origin/main)보다 앞선 커밋이 있으면 푸시
 $LocalAheadCount = [int](git rev-list origin/main..HEAD --count 2>$null)
 if ($LocalAheadCount -gt 0) {
     Write-SyncLog "로컬 커밋 ${LocalAheadCount}건을 origin/main으로 푸시합니다..."
@@ -95,14 +100,47 @@ if ($LocalAheadCount -gt 0) {
     $PushOutput | ForEach-Object { Write-SyncLog "  $_" }
     if ($PushExitCode -eq 0) {
         $PushStatus = "성공 (${LocalAheadCount}건 푸시 완료, HEAD: $CommitHash)"
-        Write-SyncLog "푸시 완료."
+        Write-SyncLog "origin 푸시 완료."
     } else {
         $PushStatus = "실패 (종료 코드: $PushExitCode)"
         $HasError = $true
-        Write-SyncLog "푸시 실패!"
+        Write-SyncLog "origin 푸시 실패!"
     }
 } else {
-    Write-SyncLog "푸시할 새로운 커밋이 없습니다."
+    Write-SyncLog "origin/main으로 푸시할 새로운 커밋이 없습니다."
+}
+
+# 5-2. NAS 원격 저장소(nas/main) 연결 확인 및 푸시 (미연결 시 안전하게 건너뜀)
+if (Test-Path -Path $NasPath) {
+    Write-SyncLog "NAS 서버 연결 확인됨 ($NasPath). git fetch nas main 실행..."
+    git fetch nas main 2>&1 | ForEach-Object { Write-SyncLog "  $_" }
+    if ($LASTEXITCODE -eq 0) {
+        $NasAheadCount = [int](git rev-list nas/main..HEAD --count 2>$null)
+        if ($NasAheadCount -gt 0) {
+            Write-SyncLog "로컬 커밋 ${NasAheadCount}건을 nas/main으로 푸시합니다..."
+            $NasPushOutput = git push nas main 2>&1
+            $NasPushExitCode = $LASTEXITCODE
+            $NasPushOutput | ForEach-Object { Write-SyncLog "  $_" }
+            if ($NasPushExitCode -eq 0) {
+                $NasPushStatus = "성공 (${NasAheadCount}건 푸시 완료, HEAD: $CommitHash)"
+                $NasSynced = $true
+                Write-SyncLog "NAS 푸시 완료."
+            } else {
+                $NasPushStatus = "실패 (종료 코드: $NasPushExitCode)"
+                $HasError = $true
+                Write-SyncLog "NAS 푸시 실패!"
+            }
+        } else {
+            $NasPushStatus = "최신 상태 유지 (푸시 대상 없음)"
+            Write-SyncLog "nas/main으로 푸시할 새로운 커밋이 없습니다."
+        }
+    } else {
+        $NasPushStatus = "건너뜀 (NAS Git 저장소 응답 없음)"
+        Write-SyncLog "경고: NAS 경로($NasPath)는 존재하나 git fetch에 실패하여 NAS 푸시를 건너뜁니다."
+    }
+} else {
+    $NasPushStatus = "건너뜀 (NAS 서버 미연결)"
+    Write-SyncLog "NAS 서버($NasPath)가 연결되어 있지 않아 NAS 푸시를 건너뜁니다. (다음 연결 시 밀린 커밋 자동 푸시)"
 }
 
 Write-SyncLog "=== SkyCAD 정기 Git 자동 동기화 종료 ==="
@@ -111,7 +149,7 @@ Write-SyncLog "=== SkyCAD 정기 Git 자동 동기화 종료 ==="
 if (Test-Path $EmailConfigFile) {
     try {
         $EmailCfg = Import-Clixml -Path $EmailConfigFile
-        $HasActivity = ($ChangedFilesList.Count -gt 0) -or ($RemoteAheadCount -gt 0) -or ($LocalAheadCount -gt 0) -or $HasError
+        $HasActivity = ($ChangedFilesList.Count -gt 0) -or ($RemoteAheadCount -gt 0) -or ($LocalAheadCount -gt 0) -or $NasSynced -or $HasError
 
         if ((-not $EmailCfg.SendOnlyOnChanges) -or $HasActivity) {
             $DateTitle = Get-Date -Format "yyyy-MM-dd HH:mm"
@@ -133,7 +171,8 @@ if (Test-Path $EmailConfigFile) {
     <tr><th style="background:#f5f5f5; text-align:left;">로컬 변경 파일 수</th><td>$($ChangedFilesList.Count)건</td></tr>
     <tr><th style="background:#f5f5f5; text-align:left;">커밋 메시지</th><td>$CommitMsg (<code>$CommitHash</code>)</td></tr>
     <tr><th style="background:#f5f5f5; text-align:left;">원격 선행 커밋 업데이트</th><td>${RemoteAheadCount}건</td></tr>
-    <tr><th style="background:#f5f5f5; text-align:left;">원격 저장소 푸시 결과</th><td><b>$PushStatus</b></td></tr>
+    <tr><th style="background:#f5f5f5; text-align:left;">GitHub(origin) 푸시 결과</th><td><b>$PushStatus</b></td></tr>
+    <tr><th style="background:#f5f5f5; text-align:left;">NAS(nas) 푸시 결과</th><td><b>$NasPushStatus</b></td></tr>
   </table>
   <h3>변경된 파일 목록</h3>
   $FilesHtml
