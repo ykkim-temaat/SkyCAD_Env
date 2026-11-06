@@ -110,37 +110,53 @@ if ($LocalAheadCount -gt 0) {
     Write-SyncLog "origin/main으로 푸시할 새로운 커밋이 없습니다."
 }
 
-# 5-2. NAS 원격 저장소(nas/main) 연결 확인 및 푸시 (미연결 시 안전하게 건너뜀)
+# 5-2. NAS 원격 저장소(nas/main) 강제 미러링 동기화 (미연결 시 안전하게 건너뜀, NAS 자체 변경사항은 무시)
 if (Test-Path -Path $NasPath) {
-    Write-SyncLog "NAS 서버 연결 확인됨 ($NasPath). git fetch nas main 실행..."
-    git fetch nas main 2>&1 | ForEach-Object { Write-SyncLog "  $_" }
+    Write-SyncLog "NAS 서버 연결 확인됨 ($NasPath). 상태 점검 및 동기화 진행..."
+
+    # NAS 내 임의 변경 사항(uncommitted/untracked) 확인 및 강제 초기화
+    $NasDirtyLines = @(git -C $NasPath status --porcelain 2>$null)
     if ($LASTEXITCODE -eq 0) {
-        $NasAheadCount = [int](git rev-list nas/main..HEAD --count 2>$null)
-        if ($NasAheadCount -gt 0) {
-            Write-SyncLog "로컬 커밋 ${NasAheadCount}건을 nas/main으로 푸시합니다..."
-            $NasPushOutput = git push nas main 2>&1
+        if ($NasDirtyLines.Count -gt 0) {
+            Write-SyncLog "NAS 저장소 내 임의 변경 사항 $($NasDirtyLines.Count)건 감지됨. 백업/공유 전용 정책에 따라 변경 사항을 무시하고 초기화합니다..."
+            git -C $NasPath reset --hard HEAD 2>&1 | ForEach-Object { Write-SyncLog "  $_" }
+            git -C $NasPath clean -fd 2>&1 | ForEach-Object { Write-SyncLog "  $_" }
+        }
+
+        $LocalHeadFull = (git rev-parse HEAD 2>$null)
+        $NasHeadFull = (git -C $NasPath rev-parse HEAD 2>$null)
+
+        if (($LocalHeadFull -ne $NasHeadFull) -or ($NasDirtyLines.Count -gt 0)) {
+            $NasAheadCount = [int](git rev-list "$NasHeadFull..$LocalHeadFull" --count 2>$null)
+            Write-SyncLog "NAS 저장소를 origin/로컬 최신 상태(HEAD: $CommitHash)와 동일하게 강제 푸시(동기화)합니다..."
+            $NasPushOutput = git push --force nas main 2>&1
             $NasPushExitCode = $LASTEXITCODE
             $NasPushOutput | ForEach-Object { Write-SyncLog "  $_" }
+
+            # 푸시 후 NAS 작업 트리(working tree)도 main 브랜치와 100% 일치하도록 강제 리셋 보장
+            git -C $NasPath reset --hard main 2>&1 | ForEach-Object { Write-SyncLog "  $_" }
+
             if ($NasPushExitCode -eq 0) {
-                $NasPushStatus = "성공 (${NasAheadCount}건 푸시 완료, HEAD: $CommitHash)"
+                $SyncDetail = if ($NasAheadCount -gt 0) { "${NasAheadCount}건 반영" } else { "작업 트리 초기화 및 동기화" }
+                $NasPushStatus = "성공 ($SyncDetail, HEAD: $CommitHash)"
                 $NasSynced = $true
-                Write-SyncLog "NAS 푸시 완료."
+                Write-SyncLog "NAS 동기화 완료."
             } else {
                 $NasPushStatus = "실패 (종료 코드: $NasPushExitCode)"
                 $HasError = $true
                 Write-SyncLog "NAS 푸시 실패!"
             }
         } else {
-            $NasPushStatus = "최신 상태 유지 (푸시 대상 없음)"
-            Write-SyncLog "nas/main으로 푸시할 새로운 커밋이 없습니다."
+            $NasPushStatus = "최신 상태 유지 (origin과 동일)"
+            Write-SyncLog "NAS 저장소(nas/main)가 이미 origin/로컬과 동일합니다."
         }
     } else {
         $NasPushStatus = "건너뜀 (NAS Git 저장소 응답 없음)"
-        Write-SyncLog "경고: NAS 경로($NasPath)는 존재하나 git fetch에 실패하여 NAS 푸시를 건너뜁니다."
+        Write-SyncLog "경고: NAS 경로($NasPath)는 존재하나 Git 상태 조회에 실패하여 NAS 동기화를 건너뜁니다."
     }
 } else {
     $NasPushStatus = "건너뜀 (NAS 서버 미연결)"
-    Write-SyncLog "NAS 서버($NasPath)가 연결되어 있지 않아 NAS 푸시를 건너뜁니다. (다음 연결 시 밀린 커밋 자동 푸시)"
+    Write-SyncLog "NAS 서버($NasPath)가 연결되어 있지 않아 NAS 동기화를 건너뜁니다. (다음 연결 시 자동 동기화)"
 }
 
 Write-SyncLog "=== SkyCAD 정기 Git 자동 동기화 종료 ==="

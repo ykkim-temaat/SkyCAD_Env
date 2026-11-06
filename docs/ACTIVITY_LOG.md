@@ -32,6 +32,9 @@
   * `.agents/rules/skycad-guidelines.md`, `.agents/skills/skycad-workflow/SKILL.md`, `docs/260822-01_SkyCAD_환경설정_및_초기작업가이드.md` 내 환경 경로를 `C:\Workspaces\SkyCAD`로 갱신.
 
 ### [2026-11-06]
-* **[09:19] NAS 원격 저장소(`nas`) 등록 및 미연결 예외 처리 구성**
+* **[09:19] NAS 원격 저장소(`nas`) 등록 및 단방향 강제 미러링/미연결 예외 처리 구성**
   * 네트워크 드라이브 경로 `Y:\3. 전장설계\SkyCAD_Library`를 `nas` 리모트로 등록하고, Git `safe.directory` 예외 등록 및 NAS 저장소 `receive.denyCurrentBranch=updateInstead` 설정 적용.
-  * 정기 자동 동기화 스크립트(`scripts/auto-git-sync.ps1`) 및 가이드라인(`.agents/rules/skycad-guidelines.md`)에 NAS 연결 여부(`Test-Path`) 사전 확인 로직 추가 (미연결 시 오류 없이 건너뛰고, 재연결 시 밀린 커밋 자동 푸시).
+  * 정기 자동 동기화 스크립트(`scripts/auto-git-sync.ps1`) 및 가이드라인(`.agents/rules/skycad-guidelines.md`) 업데이트:
+    1. NAS 미연결 시(`Test-Path` False) 오류 없이 건너뛰고 다음 연결 시 자동 동기화.
+    2. NAS 내 임의 변경 사항은 무시/초기화(`reset --hard`, `clean -fd`)하고 `git push --force nas main`으로 항상 `origin`과 100% 동일하게 유지(백업 및 공유 전용).
+    3. 타 개발자가 `origin`에 푸시한 내역을 로컬로 Pull 받은 경우에도 로컬 `HEAD`와 NAS `HEAD`를 비교하여 NAS까지 자동 반영되도록 구성.

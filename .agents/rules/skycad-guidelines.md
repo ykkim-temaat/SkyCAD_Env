@@ -50,8 +50,10 @@
      - 로컬 변경 사항이 있다면 먼저 스테이징 및 커밋한 뒤 `git pull --rebase origin main`(동일 파일 충돌 시 원격 저장소 내용을 우선 반영하거나 안전하게 병합)으로 원격 저장소의 최신 내용을 반영합니다.
   3. 로컬 작업 트리의 변경 사항(`git status`)이 있는 경우, 추가/수정된 카탈로그 부품, 심볼, 도면, 문서 내역을 파악하여 프로젝트 커밋 컨벤션(`feat(skycad): ...`, `docs: ...`, `chore(skycad): ...`)에 맞는 명확한 한국어 커밋 메시지로 스테이징(`git add -A`) 및 커밋(`git commit`)합니다.
   4. 변경 사항 및 원격 동기화 내역이 모두 없다면 빈 커밋을 만들지 않고 대기하며, 새로운 로컬 커밋이 있는 경우 원격 저장소(`origin main`)로 푸시(`git push origin main`)하고 결과를 요약 보고합니다.
-  5. **NAS 원격 저장소(`nas`) 동기화 및 미연결 예외 처리**:
-     - 별도 리모트 `nas` (`Y:\3. 전장설계\SkyCAD_Library`)로도 푸시(`git push nas main`)를 수행합니다.
+  5. **NAS 원격 저장소(`nas`) 단방향 미러링 및 예외 처리**:
+     - NAS(`Y:\3. 전장설계\SkyCAD_Library`)는 **백업 및 타 엔지니어 조회/공유 전용(Read-Only Mirror)**으로만 운영하며, 단일 진실 공급원(SSOT)은 항상 `origin`(GitHub)입니다.
      - 푸시 전 반드시 `Test-Path "Y:\3. 전장설계\SkyCAD_Library"`로 NAS 네트워크 드라이브 연결 여부를 먼저 확인합니다.
-     - **NAS가 연결되어 있는 경우**: `git fetch nas main` 후 `nas/main..HEAD` 간 차이(밀린 커밋 포함)가 있으면 `git push nas main`을 수행하여 NAS 작업 트리까지 최신화(`receive.denyCurrentBranch=updateInstead`)합니다.
-     - **NAS가 연결되지 않은 경우**: 에러로 중단하지 않고 `"NAS 서버 미연결 (건너뜀)"`으로 처리한 뒤, 추후 NAS가 연결된 시점에 누적된 커밋을 일괄 푸시합니다.
+     - **NAS가 연결되어 있는 경우**:
+       - NAS 내부에 누군가 임의로 수정한 변경 사항(`git status --porcelain`)이나 커밋이 있더라도 이를 **무시하고 강제 초기화**(`git reset --hard`, `git clean -fd`)합니다.
+       - 로컬이 `origin/main`과 동기화(Pull & Push)된 직후의 최종 `HEAD`와 NAS의 `HEAD`를 비교하여, 차이가 있으면(타 개발자가 `origin`에 올린 커밋을 로컬이 Pull 받은 경우 및 이전 미연결 기간 동안 밀린 커밋 포함) `git push --force nas main`으로 강제 푸시하여 `origin`과 100% 동일하게 유지합니다.
+     - **NAS가 연결되지 않은 경우**: 에러로 중단하지 않고 `"NAS 서버 미연결 (건너뜀)"`으로 처리한 뒤, 추후 NAS가 연결된 시점에 일괄 동기화합니다.
