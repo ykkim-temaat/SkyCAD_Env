@@ -1,9 +1,12 @@
-# ==============================================================================
+﻿# ==============================================================================
 # SkyCAD Daily Auto Git Sync Script (Commit, Pull/Update from Remote, Push, Email)
 # Runs daily at 09:00 AM via Windows Task Scheduler
 # ==============================================================================
 
 $ErrorActionPreference = "Continue"
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $RepoPath = "C:\Workspaces\SkyCAD"
 $NasPath = "Y:\3. 전장설계\SkyCAD_Library"
 $LogFile = Join-Path $RepoPath "scripts\auto-git-sync.log"
