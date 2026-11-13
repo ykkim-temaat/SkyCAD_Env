@@ -132,12 +132,15 @@ if (Test-Path -Path $NasPath) {
         if (($LocalHeadFull -ne $NasHeadFull) -or ($NasDirtyLines.Count -gt 0)) {
             $NasAheadCount = [int](git rev-list "$NasHeadFull..$LocalHeadFull" --count 2>$null)
             Write-SyncLog "NAS 저장소를 origin/로컬 최신 상태(HEAD: $CommitHash)와 동일하게 강제 푸시(동기화)합니다..."
+            # SMB 네트워크 드라이브에서 updateInstead 체크아웃 시 파일 잠금/충돌 방지를 위해 refs만 먼저 푸시 후 reset 수행
+            git -C $NasPath config receive.denyCurrentBranch ignore 2>$null
             $NasPushOutput = git push --force nas main 2>&1
             $NasPushExitCode = $LASTEXITCODE
             $NasPushOutput | ForEach-Object { Write-SyncLog "  $_" }
 
-            # 푸시 후 NAS 작업 트리(working tree)도 main 브랜치와 100% 일치하도록 강제 리셋 보장
+            # 푸시 후 NAS 작업 트리(working tree)도 main 브랜치와 100% 일치하도록 강제 리셋 및 정리 보장
             git -C $NasPath reset --hard main 2>&1 | ForEach-Object { Write-SyncLog "  $_" }
+            git -C $NasPath clean -fd 2>&1 | ForEach-Object { Write-SyncLog "  $_" }
 
             if ($NasPushExitCode -eq 0) {
                 $SyncDetail = if ($NasAheadCount -gt 0) { "${NasAheadCount}건 반영" } else { "작업 트리 초기화 및 동기화" }
